@@ -7,7 +7,7 @@ const path = require("path");
 const app = express();
 const port = 3021;
 
-const allowOrigin = "https://app.udonswap.org/";
+const allowOrigin = "https://app.udonswap.org";
 
 app.use(cors({ origin: allowOrigin }));
 app.use(express.json());
