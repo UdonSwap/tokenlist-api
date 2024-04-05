@@ -104,7 +104,7 @@ app.post("/tokenAddress",checkOrigin, async (req, res) => {
           const token = {
               chainId: 919,
               address: tokenData.address,
-              symbol: tokenData.symbol,
+              symbol: tokenData.symbol || tokenData.name,
               name: tokenData.name,
               decimals: Number(tokenData.decimals),
               tags: ["ERC-20"],
