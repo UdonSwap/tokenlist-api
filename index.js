@@ -9,19 +9,39 @@ const port = 3021;
 
 const allowOrigin = "https://app.udonswap.org";
 
-app.use(cors({ origin: allowOrigin }));
+// app.use(cors({ origin: allowOrigin }));
+
+app.use(cors());
 app.use(express.json());
+
+app.get("/v3-tokens", (req, res) => {
+  const jsonFilePath = path.join(__dirname, "uniswap-default.tokenlist.json"); // Update this with your file name
+  try {
+    const fileContents = fs.readFileSync(jsonFilePath);
+    const jsonData = JSON.parse(fileContents);
+    res.json(jsonData);
+  } catch (error) {
+    console.error("Error reading JSON file:", error.message);
+    res.status(500).json({ error: "Failed to fetch JSON file" });
+  }
+});
 
 const checkOrigin = (req, res, next) => {
   const origin = req.headers.origin;
   if (origin !== allowOrigin) {
-    return res.status(403).json({ success: false, error: "Unauthorized access" });
+    return res
+      .status(403)
+      .json({ success: false, error: "Unauthorized access" });
   }
   next();
 };
 
 // Construct the path to Tokens.json file
 const tokensFilePath = path.join(__dirname, "Tokens.json");
+
+app.get("/", (req, res) => {
+  res.send("Welcome to udonswap token APIs");
+});
 
 // Endpoint to fetch tokens from Tokens.json file ==> First Requirement
 app.get("/tokens", (req, res) => {
@@ -83,45 +103,46 @@ app.post("/addlogoURI", (req, res) => {
 });
 
 // Endpoint to add new token to Tokens.json file ==> Fourth Requirement
-app.post("/tokenAddress",checkOrigin, async (req, res) => {
+app.post("/tokenAddress", async (req, res) => {
   try {
+    const { address } = req.body;
+    // console.log(address);
 
-      const { address } = req.body;
-      // console.log(address);
+    if (!address) {
+      return res
+        .status(400)
+        .json({ error: "Missing token address in request body" });
+    }
 
-      if (!address) {
-          return res.status(400).json({ error: "Missing token address in request body" });
+    let updatedTokens = JSON.parse(fs.readFileSync(tokensFilePath, "utf8"));
+
+    // Check if token with given address already exists
+    if (!updatedTokens.tokens.find((t) => t.address === address)) {
+      const response = await axios.get(
+        `https://sepolia.explorer.mode.network/api/v2/tokens/${address}`
+      );
+      const tokenData = response.data;
+      const token = {
+        chainId: 919,
+        address: tokenData.address,
+        symbol: tokenData.symbol || tokenData.name,
+        name: tokenData.name,
+        decimals: Number(tokenData.decimals),
+        tags: ["ERC-20"],
+      };
+
+      // Add logoURI if it's not null
+      if (tokenData.icon_url !== null) {
+        token.logoURI = tokenData.icon_url;
       }
 
-      let updatedTokens = JSON.parse(fs.readFileSync(tokensFilePath, "utf8"));
-
-      // Check if token with given address already exists
-      if (!updatedTokens.tokens.find((t) => t.address === address)) {
-          const response = await axios.get(
-              `https://sepolia.explorer.mode.network/api/v2/tokens/${address}`
-          );
-          const tokenData = response.data;
-          const token = {
-              chainId: 919,
-              address: tokenData.address,
-              symbol: tokenData.symbol || tokenData.name,
-              name: tokenData.name,
-              decimals: Number(tokenData.decimals),
-              tags: ["ERC-20"],
-          };
-
-          // Add logoURI if it's not null
-          if (tokenData.icon_url !== null) {
-              token.logoURI = tokenData.icon_url;
-          }
-
-          updatedTokens.tokens.push(token);
-          fs.writeFileSync(tokensFilePath, JSON.stringify(updatedTokens, null, 2));
-      }
-      res.json(updatedTokens.tokens);
+      updatedTokens.tokens.push(token);
+      fs.writeFileSync(tokensFilePath, JSON.stringify(updatedTokens, null, 2));
+    }
+    res.json(updatedTokens.tokens);
   } catch (error) {
-      console.error("Error fetching or adding token:", error);
-      return res.status(500).json({ error: "Failed to fetch or add token" });
+    console.error("Error fetching or adding token:", error);
+    return res.status(500).json({ error: "Failed to fetch or add token" });
   }
 });
 
