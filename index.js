@@ -26,6 +26,18 @@ app.get("/v3-tokens", (req, res) => {
   }
 });
 
+app.get("/unsupported-tokens", (req, res) => {
+  const jsonFilePath = path.join(__dirname, "unsupported.json"); // Update this with your file name
+  try {
+    const fileContents = fs.readFileSync(jsonFilePath);
+    const jsonData = JSON.parse(fileContents);
+    res.json(jsonData);
+  } catch (error) {
+    console.error("Error reading JSON file:", error.message);
+    res.status(500).json({ error: "Failed to fetch JSON file" });
+  }
+});
+
 const checkOrigin = (req, res, next) => {
   const origin = req.headers.origin;
   if (origin !== allowOrigin) {
